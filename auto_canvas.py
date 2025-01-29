@@ -44,6 +44,7 @@ def putGradesIn(students):
         # Get credentials securely
         username = input("Canvas Username: ")
         password = getpass.getpass("Canvas Password: ")
+        updateAll = input("Update All? (y/n): ") == "y"
 
         # Perform login
         username_input.send_keys(username)
@@ -75,8 +76,9 @@ def putGradesIn(students):
 
                     # Find the tuple in the list of students
                     matching_student = next((student for student in students if student[0] == parsed_name_canvas), None)
+                    needs_grading = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ui-selectmenu-item-icon speedgrader-selectmenu-icon"))).text.strip() == "●"
 
-                    if matching_student:
+                    if matching_student and ((needs_grading and not updateAll) or updateAll):
                         raw_name, grade, feedback = matching_student
                         print(f"Setting grade for {student_name_canvas}")
 
