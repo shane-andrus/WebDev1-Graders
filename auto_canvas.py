@@ -15,7 +15,7 @@ def putGradesIn(students):
 
     Args:
     - students: A list of tuples containing (student_name, grade, feedback), 
-                where student_name is in the format 'lastnamefirstname' (e.g., 'barkerbob').
+                where student_name is in the format 'middlename1middlename2lastnamefirstname'.
     """
     print()
     # Set logging preferences in DesiredCapabilities
@@ -36,7 +36,6 @@ def putGradesIn(students):
         wait = WebDriverWait(driver, 10)
 
         # Locate login elements
-        window_title = driver.title
         username_input = wait.until(EC.presence_of_element_located((By.ID, "pseudonym_session_unique_id")))
         password_input = wait.until(EC.presence_of_element_located((By.ID, "pseudonym_session_password")))
         login_button = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "Button--login")))
@@ -52,12 +51,8 @@ def putGradesIn(students):
         login_button.click()
 
         # Activate the window
-        time.sleep(7)
-        WebDriverWait(driver, 10).until(lambda d: d.title != window_title)  # Wait for the page title to change
-        windows = gw.getWindowsWithTitle(driver.title)
-        if windows:
-            windows[0].activate()
-
+        time.sleep(4)
+    
         while students:
             attempts = 0
             found = False
@@ -68,9 +63,20 @@ def putGradesIn(students):
                     # Parse the name from the web
                     student_name_canvas = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ui-selectmenu-item-header"))).text.strip()
 
-                    # Convert the Canvas name to `lastnamefirstname` format
-                    canvas_firstname, canvas_lastname = student_name_canvas.split(" ")
-                    parsed_name_canvas = f"{canvas_lastname.lower()}{canvas_firstname.lower()}"
+                    # Handle names dynamically, including multiple middle names
+                    name_parts = student_name_canvas.split(" ")
+                    print(f"Raw name: {student_name_canvas}, Split parts: {name_parts}")
+
+                    if len(name_parts) >= 2:
+                        canvas_firstname = name_parts[0]
+                        canvas_lastname = name_parts[-1]
+                        # Ensure last name is a string and remove hyphens
+                        if isinstance(canvas_lastname, str):
+                            canvas_lastname = canvas_lastname.replace("-", "")
+                        canvas_middlenames = "".join(name_parts[1:-1])  # Combine all middle parts
+                        parsed_name_canvas = f"{canvas_middlenames.lower()}{canvas_lastname.lower()}{canvas_firstname.lower()}"
+                    else:
+                        raise ValueError(f"Invalid name format: {student_name_canvas}")
 
                     print(f"Looking for {parsed_name_canvas} in the list.")
 
@@ -84,31 +90,36 @@ def putGradesIn(students):
 
                         # Wait for the grade input to appear
                         grade_input = wait.until(EC.presence_of_element_located((By.ID, "grading-box-extended")))
+                        current_grade = grade_input.get_attribute("value").strip()
 
-                        # Enter the grade
-                        grade_input.clear()
-                        grade_input.send_keys(str(grade))
-                        print(f"Grade entered: {grade}")
+                        # Only update if the grade is different
+                        if current_grade == "" or current_grade != str(grade):
+                            grade_input.clear()
+                            grade_input.send_keys(str(grade))
+                            print(f"Grade updated: {grade}")
 
-                        # Locate and switch to the iframe for feedback
-                        iframe = wait.until(EC.presence_of_element_located((By.ID, "comment_rce_textarea_ifr")))
-                        driver.switch_to.frame(iframe)
+                            # Locate and switch to the iframe for feedback
+                            iframe = wait.until(EC.presence_of_element_located((By.ID, "comment_rce_textarea_ifr")))
+                            driver.switch_to.frame(iframe)
 
-                        # Locate the feedback area
-                        feedback_area = wait.until(EC.presence_of_element_located((By.ID, "tinymce")))
+                            # Locate the feedback area
+                            feedback_area = wait.until(EC.presence_of_element_located((By.ID, "tinymce")))
 
-                        # Enter feedback
-                        feedback_area.clear()
-                        feedback_area.send_keys(feedback)
-                        print(f"Feedback entered: {feedback}")
+                            # Enter feedback
+                            feedback_area.clear()
+                            feedback_area.send_keys(feedback)
+                            print(f"Feedback entered: {feedback}")
 
-                        # Switch back to the main content
-                        driver.switch_to.default_content()
+                            # Switch back to the main content
+                            driver.switch_to.default_content()
 
-                        feedback_submit = driver.find_element(By.ID, "comment_submit_button")
-                        time.sleep(1)
-                        feedback_submit.click()
-                        time.sleep(5)
+                            feedback_submit = driver.find_element(By.ID, "comment_submit_button")
+                            time.sleep(1)
+                            feedback_submit.click()
+                            time.sleep(3)
+
+                        else:
+                            print(f"Grade already set to {current_grade}, no update needed.")
 
                         # Remove the successfully submitted student from the list
                         students.remove(matching_student)
@@ -125,11 +136,11 @@ def putGradesIn(students):
                 print(f"Student {student_name_canvas} not found after 3 attempts. Removing from the list and skipping...")
                 if student_name_canvas:
                     students = [student for student in students if student[0] != parsed_name_canvas]
-
+            print(str(len(students)) + " Students Remaining")
             # Wait for and click the next button
             next_button = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "icon-arrow-right")))
             next_button.click()
-            time.sleep(5)
+            time.sleep(3)
 
     except Exception as e:
         print("Error:", e)

@@ -1,0 +1,6 @@
+bs4
+pandas
+selenium
+pygetwindow
+requests
+urllib3

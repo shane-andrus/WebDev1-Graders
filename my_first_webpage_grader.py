@@ -4,6 +4,11 @@ import os
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
+import auto_canvas
+import urllib3
+
+# Suppress InsecureRequestWarning
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Define the path to the uploaded zip file and the extraction directory
 uploaded_file_path = input("Path to submissions zip file: ")
@@ -15,6 +20,10 @@ os.makedirs(extraction_path, exist_ok=True)
 # Create a directory to store pulled HTML files
 pulled_html_path = os.path.join(extraction_path, "pulled_html")
 os.makedirs(pulled_html_path, exist_ok=True)
+
+# Create a directory for grading results
+grading_results_path = os.path.join(extraction_path, "grading_results")
+os.makedirs(grading_results_path, exist_ok=True)
 
 # Extract the files from the zip archive
 with zipfile.ZipFile(uploaded_file_path, 'r') as zip_ref:
@@ -28,7 +37,7 @@ def extract_url_from_html(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
     soup = BeautifulSoup(content, 'html.parser')
-    
+
     # Check for <meta http-equiv="Refresh"> tag
     meta_refresh = soup.find('meta', attrs={'http-equiv': 'Refresh'})
     if meta_refresh:
@@ -39,7 +48,7 @@ def extract_url_from_html(file_path):
     anchor_tag = soup.find('a', href=True)
     if anchor_tag:
         return anchor_tag['href']
-    
+
     return None
 
 # Function to check if the URL is pointing to a local IP address
@@ -59,10 +68,10 @@ def find_heading_for_element(soup, element):
 def grade_website(url, student_name, assignment_name):
     feedback = []
     total_score = 40  # Starting from full score
-    
+
     try:
-        # Fetch the website HTML
-        response = requests.get(url)
+        # Fetch the website HTML with SSL verification disabled
+        response = requests.get(url, verify=False)
         response.raise_for_status()  # Raise an error for HTTP issues
         content = response.text
 
@@ -71,7 +80,7 @@ def grade_website(url, student_name, assignment_name):
         html_file_path = os.path.join(pulled_html_path, html_filename)
         with open(html_file_path, "w", encoding="utf-8") as html_file:
             html_file.write(content)
-        
+
         soup = BeautifulSoup(content, 'html.parser')
 
         # 1. Basic structure and indentation (3 pts)
@@ -79,7 +88,7 @@ def grade_website(url, student_name, assignment_name):
         html_tag = soup.find('html')
         head_tag = soup.find('head')
         body_tag = soup.find('body')
-        
+
         basic_elements = sum([doctype_present, bool(html_tag), bool(head_tag), bool(body_tag)])
         if basic_elements < 4:
             feedback.append("Missing one or more basic structure elements: <!DOCTYPE>, <html>, <head>, <body>.")
@@ -124,16 +133,18 @@ def grade_website(url, student_name, assignment_name):
 
     except requests.exceptions.RequestException as e:
         feedback.append(f"Failed to fetch website: {e}")
-        total_score = 0  # No score if the website can't be fetched
+        total_score = 1  # No score if the website can't be fetched
 
     # Ensure total score doesn't go below zero
     total_score = max(total_score, 0)
-    
+
     # Return the score and feedback
     return total_score, feedback
 
 # Grading the extracted files
 grading_results = {}
+grading_tuples = []  # To hold tuples of (student_name, score, feedback)
+
 for file_name in extracted_files:
     file_path = os.path.join(extraction_path, file_name)
 
@@ -145,43 +156,54 @@ for file_name in extracted_files:
     try:
         url = extract_url_from_html(file_path)
         if not url:
+            feedback = "No valid URL found in the submission. Please resubmit with a valid URL."
             grading_results[file_name] = {
-                'Score': 0,
-                'Feedback': "No valid URL found in the submission. Please resubmit with a valid URL."
+                'Score': 1,
+                'Feedback': feedback
             }
+            student_name = file_name.split('_')[0]
+            grading_tuples.append((student_name, 0, feedback))
             continue
 
         # Check if the URL is local
         if is_local_url(url):
+            feedback = f"Submitted a URL pointing to a local IP address ({url}). Please resubmit with a valid online URL."
             grading_results[file_name] = {
                 'Score': 1,
-                'Feedback': f"Submitted a URL pointing to a local IP address ({url}). Please resubmit with a valid online URL."
+                'Feedback': feedback
             }
+            student_name = file_name.split('_')[0]
+            grading_tuples.append((student_name, 1, feedback))
             continue
-    except UnicodeDecodeError:
-        print("Unicode Decode Error while finding url from submission: " + file_name)
-    except:
-        print("An unknown Error occured while finding url from submission: " + file_name)
 
-    
+        # Grade the website
+        student_name = file_name.split('_')[0]
+        assignment_name = "myfirstwebpage"
 
-    # Extract student and assignment information for naming
-    student_name = file_name.split('_')[0]
-    assignment_name = "myfavoritecereal"
+        score, feedback = grade_website(url, student_name, assignment_name)
+        grading_results[file_name] = {
+            'Score': score,
+            'Feedback': "; ".join(feedback) if feedback else "Good job!"
+        }
+        grading_tuples.append((student_name, score, "; ".join(feedback) if feedback else "Good job!"))
 
-    # Grade the website and save HTML
-    score, feedback = grade_website(url, student_name, assignment_name)
-    grading_results[file_name] = {
-        'Score': score,
-        'Feedback': "; ".join(feedback) if feedback else "Good job!"
-    }
+    except Exception as e:
+        feedback = f"Error processing file: {str(e)}"
+        grading_results[file_name] = {
+            'Score': 1,
+            'Feedback': feedback
+        }
+        student_name = file_name.split('_')[0]
+        grading_tuples.append((student_name, 0, feedback))
 
 # Convert grading results to a DataFrame
 grading_results_df = pd.DataFrame.from_dict(grading_results, orient='index')
 
 # Save results to a CSV file
-grading_results_csv_path = os.path.join(extraction_path, 'grading_results.csv')
+grading_results_csv_path = os.path.join(grading_results_path, 'grading_results.csv')
 grading_results_df.to_csv(grading_results_csv_path)
 
 print(f"Grading results saved to: {grading_results_csv_path}")
-print(f"Pulled HTML files saved to: {pulled_html_path}")
+
+# Pass the grading tuples to the auto canvas function
+auto_canvas.putGradesIn(grading_tuples)
