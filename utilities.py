@@ -28,10 +28,6 @@ def grading_setup(uploaded_file_path, results_path):
 
     # Get a list of extracted files
     extracted_files = os.listdir(results_path)
-    for file in extracted_files:
-        url = extract_url_from_html(file)
-        fetch_and_save_html(url,)
-    print(f"Pulled HTML files saved to: {pulled_html_path}")
     return extracted_files
 
 # Ensure the extraction directory exists
@@ -188,6 +184,7 @@ def fetch_and_save_html(url, save_path):
         response = requests.get(url, verify=False)
         response.raise_for_status()
         content = response.text
+        
         save_to_file(content, save_path)
         return content
     except requests.exceptions.RequestException as e:
