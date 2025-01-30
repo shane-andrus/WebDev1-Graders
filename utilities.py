@@ -10,6 +10,8 @@ import pandas as pd
 # Suppress InsecureRequestWarning
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+fetched_pages_path = ""
+
 def grading_setup(uploaded_file_path, results_path):
     # Ensure the extraction directory exists
     os.makedirs(results_path, exist_ok=True)
@@ -18,10 +20,17 @@ def grading_setup(uploaded_file_path, results_path):
     pulled_html_path = os.path.join(results_path, "pulled_html")
     os.makedirs(pulled_html_path, exist_ok=True)
 
+    # Create a directory for storing fetched webpages
+    fetched_pages_path = os.path.join(results_path, "fetched_pages")
+    os.makedirs(fetched_pages_path, exist_ok=True)
+
     extract_zip(uploaded_file_path, results_path)
 
     # Get a list of extracted files
     extracted_files = os.listdir(results_path)
+    for file in extracted_files:
+        url = extract_url_from_html(file)
+        fetch_and_save_html(url,)
     print(f"Pulled HTML files saved to: {pulled_html_path}")
     return extracted_files
 
@@ -156,7 +165,7 @@ def grade_extracted_files(grading_function, results_path, extracted_files, assig
                 late_assignments.append((file_name, 1, feedback))
             else:
                 grading_tuples.append((file_name, 1, feedback))
-        # Sort the grading tuples alphabetically, keeping late assignments at the end
+    # Sort the grading tuples alphabetically, keeping late assignments at the end
     grading_tuples.sort()
     late_assignments.sort()
     grading_tuples.extend(late_assignments)
@@ -172,3 +181,14 @@ def grade_extracted_files(grading_function, results_path, extracted_files, assig
 
     print(f"Grading results saved to: {grading_results_csv_path}")
     return grading_tuples
+
+# Function to fetch and save HTML content
+def fetch_and_save_html(url, save_path):
+    try:
+        response = requests.get(url, verify=False)
+        response.raise_for_status()
+        content = response.text
+        save_to_file(content, save_path)
+        return content
+    except requests.exceptions.RequestException as e:
+        raise ValueError(f"Failed to fetch content from the URL: {e}")

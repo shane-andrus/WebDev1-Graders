@@ -102,40 +102,41 @@ def grade_html_file(url, file_path, submission_folder):
         # Fetch all linked pages
         fetch_all_linked_pages(url, main_content, submission_folder, visited_urls)
 
-        # Grade internal and external links for the main page
+        # Grade internal and external links for the main and linked pages
+        total_internal_links = 0
+        has_external_image_link = False
+
+        # Analyze the main page
         soup = BeautifulSoup(main_content, 'html.parser')
-        internal_links = [link['href'] for link in soup.find_all('a', href=True) if not link['href'].startswith(('http://', 'https://', '/'))]
+        internal_links_main = [link['href'] for link in soup.find_all('a', href=True) if not link['href'].startswith(('http://', 'https://', '/'))]
+        total_internal_links += len(internal_links_main)
 
-        if len(internal_links) >= 1:
-            feedback.append("Main page has internal links implemented.")
-        else:
-            feedback.append("Main page is missing internal links.")
-            total_score -= 5
+        images_in_links_main = [a for a in soup.find_all('a', href=True) if a.find('img') and a['href'].startswith(('http://', 'https://')) and a.get('target') == '_blank']
+        if images_in_links_main:
+            has_external_image_link = True
 
-        external_links = [link for link in soup.find_all('a', href=True) if link['href'].startswith(('http://', 'https://')) and 'target' in link.attrs and link['target'] == '_blank']
-
-        if external_links:
-            feedback.append("Main page has external link implemented correctly.")
-        else:
-            feedback.append("Main page is missing external links or they are incorrectly implemented.")
-            total_score -= 5
-
-        # Check and grade the linked page
+        # Analyze the linked page
         linked_page_path = os.path.join(submission_folder, "linked.html")
         if os.path.exists(linked_page_path):
             with open(linked_page_path, 'r', encoding='utf-8') as linked_file:
                 linked_content = linked_file.read()
             linked_soup = BeautifulSoup(linked_content, 'html.parser')
 
-            linked_internal_links = [link['href'] for link in linked_soup.find_all('a', href=True) if not link['href'].startswith(('http://', 'https://', '/'))]
+            internal_links_linked = [link['href'] for link in linked_soup.find_all('a', href=True) if not link['href'].startswith(('http://', 'https://', '/'))]
+            total_internal_links += len(internal_links_linked)
 
-            if len(linked_internal_links) >= 1:
-                feedback.append("Linked page has internal links implemented.")
-            else:
-                feedback.append("Linked page is missing internal links.")
-                total_score -= 5
-        else:
-            feedback.append("Linked page could not be found or fetched.")
+            linked_images_in_links = [a for a in linked_soup.find_all('a', href=True) if a.find('img') and a['href'].startswith(('http://', 'https://')) and a.get('target') == '_blank']
+            if linked_images_in_links:
+                has_external_image_link = True
+
+        # Check for total internal links
+        if total_internal_links < 2:
+            feedback.append("The submission must have at least 2 internal links across all pages.")
+            total_score -= 5
+
+        # Check for at least one image surrounded by an <a> tag pointing to an external site with target="_blank"
+        if not has_external_image_link:
+            feedback.append("The submission must have at least one <img> tag surrounded by an <a> tag pointing to an external site with target=\"_blank\".")
             total_score -= 5
 
     except ValueError as e:

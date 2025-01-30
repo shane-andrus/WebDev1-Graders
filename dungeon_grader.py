@@ -22,22 +22,22 @@ def grade_dungeon_map(url, student_name, assignment_name):
                 # Check for an image inside the table
                 image = first_table.find('img')
                 if not image:
-                    feedback.append("First table is missing an image~~")
+                    feedback.append("First table is missing an image. ~~ ")
                     total_score -= 5
 
                 # Check for at least 1 external link
                 link = first_table.find('a', href=True)
                 if not link or "http" not in link['href']:
-                    feedback.append("First table is missing an external link~~")
+                    feedback.append("First table is missing an external link. ~~ ")
                     total_score -= 5
 
                 # Check for background colors, font colors, or other styles
                 styles = first_table.get('style') or any(cell.get('style') for cell in first_table.find_all(['td', 'th']))
                 if not styles:
-                    feedback.append("First table is missing background or font styles~~")
+                    feedback.append("First table is missing background or font styles. ~~ ")
                     total_score -= 5
             else:
-                feedback.append("First table does not have at least 5 rows and 5 columns~~")
+                feedback.append("First table does not have at least 5 rows and 5 columns. ~~ ")
                 total_score -= 10
         else:
             feedback.append("Missing the first table for the dungeon map~~")
