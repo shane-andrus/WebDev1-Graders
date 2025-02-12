@@ -24,10 +24,14 @@ def grading_setup(uploaded_file_path, results_path):
     fetched_pages_path = os.path.join(results_path, "fetched_pages")
     os.makedirs(fetched_pages_path, exist_ok=True)
 
-    extract_zip(uploaded_file_path, results_path)
+    # Create a directory for CSV results
+    fetched_pages_path = os.path.join(results_path, "csv")
+    os.makedirs(fetched_pages_path, exist_ok=True)
+
+    extract_zip(uploaded_file_path, pulled_html_path)
 
     # Get a list of extracted files
-    extracted_files = os.listdir(results_path)
+    extracted_files = os.listdir(pulled_html_path)
     return extracted_files
 
 # Ensure the extraction directory exists
@@ -103,7 +107,8 @@ def grade_extracted_files(grading_function, results_path, extracted_files, assig
     grading_tuples = []  # To hold tuples of (student_name, score, feedback)
     late_assignments = []  # To hold late assignments separately
     for file_name in extracted_files:
-        file_path = os.path.join(results_path, file_name)
+        pulled_path = os.path.join(results_path,"pulled_html")
+        file_path = os.path.join(pulled_path, file_name)
 
         # Skip directories to avoid issues
         if os.path.isdir(file_path):
@@ -141,6 +146,10 @@ def grade_extracted_files(grading_function, results_path, extracted_files, assig
                     grading_tuples.append((student_name, 1, feedback))
                 continue
             
+            fetched_pages_path = os.path.join(results_path,"fetched_pages")
+            full_file_path = os.path.join(fetched_pages_path, f"{student_name}_{assignment_name}.html")
+            fetch_and_save_html(url, full_file_path)
+
             # Grade the website and save HTML
             score, feedback = grading_function(url, student_name, assignment_name)
             grading_results[file_name] = {
