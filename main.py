@@ -1,11 +1,17 @@
-import os
+from my_first_website_grader import grade_my_first_website
 from utilities import grading_setup, grade_extracted_files
 from auto_canvas import putGradesIn
 from dungeon_grader import grade_dungeon_map
+from test_part_2_grader import grade_html_test_part_2
+from my_first_webpage_grader import grade_my_first_webpage
+from my_second_webpage_grader import grade_my_second_webpage
 
 grading_functions = [
+    ("my first webpage", grade_my_first_webpage),
+    ("my second webpage", grade_my_second_webpage),
+    ("my first website", grade_my_first_website),
     ("dungeon", grade_dungeon_map),
-    # Add other grading functions here as tuples, e.g. ("Another Grader", another_grading_function)
+    ("html test", grade_html_test_part_2),
 ]
 
 def main():
