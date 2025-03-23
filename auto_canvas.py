@@ -9,13 +9,14 @@ import pygetwindow as gw
 import getpass
 import time
 
-def putGradesIn(students):
+def putGradesIn(students, speedGrader=None):
     """
     Function to automate grading in Canvas SpeedGrader.
 
     Args:
     - students: A list of tuples containing (student_name, grade, feedback), 
                 where student_name is in the format 'middlename1middlename2lastnamefirstname'.
+    - speedGrader: URL of the SpeedGrader page (optional, if not provided, will prompt).
     """
     print()
     # Set logging preferences in DesiredCapabilities
@@ -28,7 +29,9 @@ def putGradesIn(students):
 
     # Initialize WebDriver
     driver = webdriver.Chrome(options=options)
-    speedGrader = input("What is the URL of the SpeedGrader you want to interact with?\n")
+    
+    if not speedGrader:
+        speedGrader = input("What is the URL of the SpeedGrader you want to interact with?\n")
     driver.get(speedGrader)  # Open the SpeedGrader page
 
     try:
