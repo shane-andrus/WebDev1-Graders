@@ -11,7 +11,7 @@ import time
 
 def putGradesIn(students):
     """
-    Function to automate grading.
+    Function to automate grading in Canvas SpeedGrader.
 
     Args:
     - students: A list of tuples containing (student_name, grade, feedback), 
@@ -28,8 +28,8 @@ def putGradesIn(students):
 
     # Initialize WebDriver
     driver = webdriver.Chrome(options=options)
-    speedGrader = input("What is the url of the speed grader you are wanting to interact with?\n")
-    driver.get(speedGrader)  # Replace with the URL of your target website
+    speedGrader = input("What is the URL of the SpeedGrader you want to interact with?\n")
+    driver.get(speedGrader)  # Open the SpeedGrader page
 
     try:
         # Wait for the login elements to appear
@@ -43,24 +43,32 @@ def putGradesIn(students):
         # Get credentials securely
         username = input("Canvas Username: ")
         password = getpass.getpass("Canvas Password: ")
+        updateAll = input("Update All? (y/n): ").strip().lower() == "y"
 
         # Perform login
         username_input.send_keys(username)
         password_input.send_keys(password)
         login_button.click()
 
-        # Activate the window
+        # Allow time for the page to load
         time.sleep(4)
-    
+
         while students:
             attempts = 0
             found = False
             student_name_canvas = ""
+            parsed_name_canvas = ""  # Ensure it's always initialized
+            needs_grading = True
 
-            while attempts < 3:
+            while attempts < 3 and needs_grading:
                 try:
                     # Parse the name from the web
                     student_name_canvas = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ui-selectmenu-item-header"))).text.strip()
+
+                    # Check if the student needs grading
+                    needs_grading = len(driver.find_elements(By.CLASS_NAME, "ui-selectmenu-item-icon.speedgrader-selectmenu-icon")) >= 1
+                    if not needs_grading and not updateAll:
+                        break
 
                     # Handle names dynamically, including multiple middle names
                     name_parts = student_name_canvas.split(" ")
@@ -68,10 +76,7 @@ def putGradesIn(students):
 
                     if len(name_parts) >= 2:
                         canvas_firstname = name_parts[0]
-                        canvas_lastname = name_parts[-1]
-                        # Ensure last name is a string and remove hyphens
-                        if isinstance(canvas_lastname, str):
-                            canvas_lastname = canvas_lastname.replace("-", "")
+                        canvas_lastname = name_parts[-1].replace("-", "")  # Remove hyphens in last names
                         canvas_middlenames = "".join(name_parts[1:-1])  # Combine all middle parts
                         parsed_name_canvas = f"{canvas_middlenames.lower()}{canvas_lastname.lower()}{canvas_firstname.lower()}"
                     else:
@@ -134,15 +139,20 @@ def putGradesIn(students):
                 print(f"Student {student_name_canvas} not found after 3 attempts. Removing from the list and skipping...")
                 if student_name_canvas:
                     students = [student for student in students if student[0] != parsed_name_canvas]
-            print(str(len(students)) + " Students Remaining")
+            print(f"{len(students)} Students Remaining")
+
             # Wait for and click the next button
-            next_button = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "icon-arrow-right")))
-            next_button.click()
-            time.sleep(3)
+            try:
+                next_button = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "icon-arrow-right")))
+                next_button.click()
+                time.sleep(3)
+            except Exception:
+                print("No next button found. Ending grading process.")
+                break
 
     except Exception as e:
         print("Error:", e)
 
-    # Close the browser after interaction
     finally:
+        # Close the browser after interaction
         driver.quit()
