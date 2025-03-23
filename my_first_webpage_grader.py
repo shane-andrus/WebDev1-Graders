@@ -9,13 +9,11 @@ def grade_my_first_webpage(url, student_name, assignment_name):
 
     try:
         # Fetch the website HTML with SSL verification disabled
-        content = fetch_html(url)
-        soup = BeautifulSoup(content, 'html.parser')
+        response = requests.get(url, verify=False)
+        response.raise_for_status()
+        content = response.text
 
-        # Save the pulled HTML to a file for inspection
-        html_filename = f"{student_name}_{assignment_name}.html"
-        html_file_path = os.path.join("pulled_html", html_filename)
-        save_to_file(content, html_file_path)
+        soup = BeautifulSoup(content, 'html.parser')
 
         # 1. Basic structure and indentation (3 pts)
         doctype_present = '<!DOCTYPE' in content.upper()

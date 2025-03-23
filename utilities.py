@@ -89,8 +89,13 @@ def fetch_html(url):
 
 # Save content to a file
 def save_to_file(content, file_path):
-    with open(file_path, "w", encoding="utf-8") as file:
-        file.write(content)
+    try:
+        with open(file_path, "w", encoding="utf-8") as file:
+                file.write(content)
+    except Exception as e:
+        print(f"Error saving content to file: {e}") 
+    
+    
 
 # Function to validate URLs
 def is_valid_url(url):
